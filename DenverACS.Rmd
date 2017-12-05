@@ -1,0 +1,323 @@
+---
+title: "Exploring Denver ACS Data"
+author: "Molly Graber"
+date: "11/19/2017"
+output: html_document
+---
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(leaflet)
+library(leaflet.extras)
+library(rgdal)
+library(rgeos)
+```
+
+##Introduction
+
+The following maps present different methods of visualizing American Community Surver data of Denver using leaflet, both from a variable perspective and a contextual perspective. The data come from 2009-2013 5-year estimates at the tract level, availible through the Denver Open Data catalog. 
+
+```{r, echo=FALSE, warning=FALSE, results='hide'}
+#tracts <- readOGR('ACS1014_tract', layer = 'ACS1014_tract')
+#ahu <- readOGR('affordable_housing_units', layer = 'affordable_housing_units')
+
+tracts<- readOGR('ACS', layer = 'ACS')
+race <- c('PCT_HISPAN','PCT_WHITE','PCT_BLACK','PCT_NATIVE','PCT_ASIAN','PCT_HAWAII','PCT_OTHERR')
+age <- c('AGE_0_TO_9','AGE_10_TO1','AGE_20_TO_','AGE_30_TO_','AGE_40_TO_','AGE_50_TO_','AGE_60_TO_','AGE_70_TO_','AGE_80_PLU')
+edu <- c('HSGRAD_OR_EQUIV_EDU','BACHELORS_OR_HIGHER_EDU')
+lang <- c('ONLY_ENGLISH_LNG','SPANISH_LNG')
+family <- c('MARRIED_CO','FAMILY_HOU','NONFAMILY_')
+wealth <- c('MED_HH_INC')
+columns <- c(race, age, edu, lang, family, wealth)
+```
+
+##Univariate Maps
+
+Map of Median Household Income by Census Tract
+```{r interactive choropleth, echo=FALSE}
+pal <- colorBin("BuGn", domain = tracts$MED_HH_INC, n=6)
+
+labels <- sprintf(
+  "<strong>Median Household Income</strong><br/>$%g ",
+  tracts$MED_HH_INC
+) %>% lapply(htmltools::HTML)
+
+leaflet(tracts) %>%
+  setView(-104.99, 39.73, zoom = 11) %>%
+  addProviderTiles(providers$CartoDB.Positron, group="Light") %>%
+  addPolygons(
+    fillColor = ~pal(tracts$MED_HH_INC),
+    weight = 2,
+    opacity = .3,
+    color = "white",
+    dashArray = "",
+    fillOpacity = 0.4,
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 1,
+      bringToFront = TRUE),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addLegend(pal = pal, values = tracts$MED_HH_INC, opacity = 1, title = "Median Household Income ($)",
+    position = "bottomleft")
+
+```
+
+Map of Ethnic Populations by Census Tract
+```{r hispanic choropleth, echo=FALSE}
+
+palHispanic <- colorBin("Purples", domain = tracts$PCT_HISPAN, 5)
+palBlack <- colorBin("Blues", domain = tracts$PCT_BLACK, 5)
+palAsian <- colorBin("Greens", domain = tracts$PCT_ASIAN, 5)
+
+labelsH <- sprintf(
+  "<strong>Percent Hispanic</strong><br/>%g Percent ",
+  tracts$PCT_HISPAN
+) %>% lapply(htmltools::HTML)
+
+labelsB <- sprintf(
+  "<strong>Percent Black</strong><br/>%g Percent ",
+  tracts$PCT_BLACK
+) %>% lapply(htmltools::HTML)
+
+labelsA <- sprintf(
+  "<strong>Percent Asian</strong><br/>%g Percent ",
+  tracts$PCT_ASIAN
+) %>% lapply(htmltools::HTML)
+
+
+leaflet(tracts) %>%
+  setView(-104.99, 39.73, zoom = 11) %>%
+  addProviderTiles(providers$CartoDB.Positron, group="Light") %>%
+  addPolygons(
+    fillColor = ~palHispanic(tracts$PCT_HISPAN),
+    group = "Hispanic",
+    weight = 2,
+    opacity = .3,
+    color = "white",
+    dashArray = "",
+    fillOpacity = 0.6,
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 1,
+      bringToFront = TRUE),
+    label = labelsH,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addPolygons(
+    fillColor = ~palBlack(tracts$PCT_BLACK),
+    group = "Black",
+    weight = 2,
+    opacity = .3,
+    color = "white",
+    dashArray = "",
+    fillOpacity = 0.6,
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 1,
+      bringToFront = TRUE),
+    label = labelsB,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addPolygons(
+    fillColor = ~palAsian(tracts$PCT_ASIAN),
+    group = "Asian",
+    weight = 2,
+    opacity = .3,
+    color = "white",
+    dashArray = "",
+    fillOpacity = 0.6,
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 1,
+      bringToFront = TRUE),
+    label = labelsA,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addLayersControl(
+    baseGroups = c("Hispanic","Black","Asian"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+
+
+```
+
+
+Z-score Standardized Map of Median Household Income
+
+```{r standardized choropleth, echo=FALSE}
+
+palZ <- colorBin("BrBG", domain = scale(tracts$MED_HH_INC), c(-10,-3, -1, 0, 1, 3, 10))
+
+
+labels <- sprintf(
+  "<strong>Median Household Income Z-score</strong><br/>%g SEs from Denver Mean ",
+  scale(tracts$MED_HH_INC)
+) %>% lapply(htmltools::HTML)
+
+leaflet(tracts) %>%
+  setView(-104.99, 39.73, zoom = 11) %>%
+  addProviderTiles(providers$CartoDB.Positron, group="Light") %>%
+  addPolygons(
+    fillColor = ~palZ(scale(tracts$MED_HH_INC)),
+    weight = 2,
+    opacity = .3,
+    color = "white",
+    dashArray = "",
+    fillOpacity = 0.4,
+    highlight = highlightOptions(
+      weight = 3,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 1,
+      bringToFront = TRUE),
+    label = labels,
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "15px",
+      direction = "auto")) %>%
+  addLegend(pal = palZ, values = scale(tracts$MED_HH_INC), opacity = 1, title = "Med. Income Z-score",
+    position = "bottomleft")
+
+
+```
+
+Map of K-Means for 3, 4, and 5 Clusters
+
+```{r, echo=FALSE}
+cluster3 <- kmeans(scale(tracts@data[,8:100]), 3, iter.max=10000, nstart=100)
+tracts@data$cluster3 <- as.factor(cluster3$cluster)
+
+cluster4 <- kmeans(scale(tracts@data[,8:100]), 4, iter.max=10000, nstart=100)
+tracts@data$cluster4 <- as.factor(cluster4$cluster)
+
+cluster5 <- kmeans(scale(tracts@data[,8:100]), 5, iter.max=10000, nstart=100)
+tracts@data$cluster5 <- as.factor(cluster5$cluster)
+
+cluster6 <- kmeans(scale(tracts@data[,8:100]), 6, iter.max=10000, nstart=100)
+tracts@data$cluster6 <- as.factor(cluster6$cluster)
+
+cluster7 <- kmeans(scale(tracts@data[,8:100]), 7, iter.max=10000, nstart=100)
+tracts@data$cluster7 <- as.factor(cluster7$cluster)
+
+cluster8 <- kmeans(scale(tracts@data[,8:100]), 8, iter.max=10000, nstart=100)
+tracts@data$cluster8 <- as.factor(cluster8$cluster)
+
+cluster9 <- kmeans(scale(tracts@data[,8:100]), 9, iter.max=10000, nstart=100)
+tracts@data$cluster9 <- as.factor(cluster9$cluster)
+
+cluster10 <- kmeans(scale(tracts@data[,8:100]), 10, iter.max=10000, nstart=100)
+tracts@data$cluster10 <- as.factor(cluster10$cluster)
+
+```
+
+```{r, echo=FALSE}
+
+leaf <- leaflet(tracts) %>%
+  addProviderTiles(providers$CartoDB.Positron)
+
+### Set up 6-cluster layer
+pal3 <- colorFactor("Set3", domain = tracts$cluster3)
+pal4 <- colorFactor("Set3", domain = tracts$cluster4)
+pal5 <- colorFactor("Set3", domain = tracts$cluster5)
+
+
+labels3 <- sprintf(
+  "<strong>Tract Demographic Type</strong><br/>%g",
+  tracts$cluster3
+) %>% lapply(htmltools::HTML)
+
+labels4 <- sprintf(
+  "<strong>Tract Demographic Type</strong><br/>%g",
+  tracts$cluster4
+) %>% lapply(htmltools::HTML)
+
+labels5 <- sprintf(
+  "<strong>Tract Demographic Type</strong><br/>%g",
+  tracts$cluster5
+) %>% lapply(htmltools::HTML)
+
+
+## Add polygon groups
+leaf %>%
+  addPolygons(
+      group = "3 Clusters",
+      fillColor = ~pal3(tracts$cluster3),
+      weight = 2,
+      opacity = .3,
+      color = "white",
+      dashArray = "",
+      fillOpacity = 0.4,
+      highlight = highlightOptions(
+        weight = 3,
+        color = "#666",
+        dashArray = "",
+        fillOpacity = 1,
+        bringToFront = TRUE),
+      label = labels3,
+      labelOptions = labelOptions(
+        style = list("font-weight" = "normal", padding = "3px 8px"),
+        textsize = "15px",
+        direction = "auto")) %>%
+  addPolygons(
+      group = "4 Clusters",
+      fillColor = ~pal4(tracts$cluster4),
+      weight = 2,
+      opacity = .3,
+      color = "white",
+      dashArray = "",
+      fillOpacity = 0.4,
+      highlight = highlightOptions(
+        weight = 3,
+        color = "#666",
+        dashArray = "",
+        fillOpacity = 1,
+        bringToFront = TRUE),
+      label = labels4,
+      labelOptions = labelOptions(
+        style = list("font-weight" = "normal", padding = "3px 8px"),
+        textsize = "15px",
+        direction = "auto")) %>%
+  addPolygons(
+      group = "5 Clusters",
+      fillColor = ~pal5(tracts$cluster5),
+      weight = 2,
+      opacity = .3,
+      color = "white",
+      dashArray = "",
+      fillOpacity = 0.4,
+      highlight = highlightOptions(
+        weight = 3,
+        color = "#666",
+        dashArray = "",
+        fillOpacity = 1,
+        bringToFront = TRUE),
+      label = labels5,
+      labelOptions = labelOptions(
+        style = list("font-weight" = "normal", padding = "3px 8px"),
+        textsize = "15px",
+        direction = "auto")) %>%
+  setView(-104.99, 39.73, zoom = 12) %>%
+  addLayersControl(
+    baseGroups = c("3 Clusters","4 Clusters","5 Clusters"),
+    options = layersControlOptions(collapsed = FALSE)
+  )
+
+```
+

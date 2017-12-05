@@ -1,0 +1,61 @@
+---
+title: "Mapping Denver Crime with Leaflet"
+author: "Molly Graber"
+date: "11/19/2017"
+output: html_document
+---
+
+##Heat Maps of Denver Crime 2012-2017 by Offense Category
+
+Classification is based on the National Incident Based Reporting System. Data comes from Denver Open Data Catalog, Accessed 11/19/17.
+
+```{r working with point data, echo=FALSE, warning=FALSE, message = FALSE, results='hide'}
+library(leaflet)
+library(leaflet.extras)
+library(rgeos)
+library(rgdal)
+
+denverCrime <- readOGR('crime', layer = 'crime')
+```
+
+```{r, echo=FALSE, warning=FALSE}
+murder <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="murder")
+aggravated_assault <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="aggravated-assault")
+auto_theft <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="auto-theft")
+larceny <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="larceny")
+public_disorder <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="public-disorder")
+burglary <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="burglary")
+robbery <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="robbery")
+white_collar_crime <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="white-collar-crime")
+arson <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="arson")
+drug_alcohol <- subset(denverCrime, denverCrime@data$OFFENSE_CA=="drug-alcohol")
+
+
+leaflet(denverCrime) %>% addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(-104.99, 39.73, zoom=14) %>%
+  addHeatmap(lng = murder$GEO_LON, lat = murder$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Murder") %>%
+  addHeatmap(lng = aggravated_assault$GEO_LON, lat = aggravated_assault$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Aggrevated Assault") %>%
+  addHeatmap(lng = auto_theft$GEO_LON, lat = auto_theft$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Auto Theft") %>%
+  addHeatmap(lng = larceny$GEO_LON, lat = larceny$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Larceny") %>%
+  addHeatmap(lng = public_disorder$GEO_LON, lat = public_disorder$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Public Disorder") %>%
+  addHeatmap(lng = burglary$GEO_LON, lat = burglary$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Burglary") %>%
+  addHeatmap(lng = robbery$GEO_LON, lat = robbery$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Robbery") %>%
+  addHeatmap(lng = white_collar_crime$GEO_LON, lat = white_collar_crime$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "White-Collar Crime") %>%
+  addHeatmap(lng = arson$GEO_LON, lat = arson$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Arson") %>%
+  addHeatmap(lng = drug_alcohol$GEO_LON, lat = drug_alcohol$GEO_LAT,
+             blur = 20, max= 1, radius = 10, group = "Drug & Alcohol") %>%
+  addLayersControl(
+    baseGroups = c("Murder","Aggrevated Assault","Auto Theft","Larceny","Public Disorder","Burglary","Robbery","White-Collar Crime","Arson","Drug & Alcohol"),
+    options = layersControlOptions(collapsed = TRUE)
+  )
+
+```
